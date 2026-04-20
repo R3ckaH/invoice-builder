@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Builder — CaerusPH</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: 'DM Sans', sans-serif; background: #f0eee8; color: #0f0f0f; }
+
+  /* ── SHELL ── */
+  .shell { display: grid; grid-template-columns: 440px 1fr; height: 100vh; }
+
+  /* ── LEFT PANEL ── */
+  .L { background: #fff; border-right: 0.5px solid #e0e0e0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .L-head { padding: 16px 22px; border-bottom: 0.5px solid #efefef; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .lmark { width: 28px; height: 28px; background: #141420; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .lmark svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; }
+  .lbrand { font-size: 13px; font-weight: 500; }
+  .lpill { margin-left: auto; font-size: 10px; color: #aaa; background: #f5f4f0; border: 0.5px solid #e5e5e5; border-radius: 100px; padding: 2px 10px; }
+
+  /* ── STEP TABS ── */
+  .tabs { display: flex; padding: 12px 16px; gap: 4px; border-bottom: 0.5px solid #efefef; flex-shrink: 0; }
+  .tab { flex: 1; border: none; background: none; cursor: pointer; border-radius: 9px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: background .15s; font-family: 'DM Sans', sans-serif; }
+  .tab:hover { background: #f5f4f0; }
+  .tab.on { background: #141420; }
+  .tab.done { background: none; }
+  .tnum { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #ccc; font-weight: 500; transition: all .15s; }
+  .tab.on .tnum { background: #fff; border-color: #fff; color: #141420; }
+  .tab.done .tnum { background: #141420; border-color: #141420; color: #fff; font-size: 10px; }
+  .tlbl { font-size: 9px; color: #ccc; white-space: nowrap; transition: color .15s; }
+  .tab.on .tlbl { color: rgba(255,255,255,.65); }
+  .tab.done .tlbl { color: #999; }
+
+  /* ── PROGRESS BAR ── */
+  .pbar { height: 2px; background: #f0f0f0; flex-shrink: 0; }
+  .pfill { height: 100%; background: #141420; transition: width .35s ease; }
+
+  /* ── PANELS ── */
+  .panels { flex: 1; overflow-y: auto; padding: 22px 22px 10px; }
+  .panel { display: none; }
+  .panel.on { display: block; animation: slideUp .2s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .ptitle { font-family: 'Instrument Serif', serif; font-size: 22px; color: #0f0f0f; margin-bottom: 3px; }
+  .psub { font-size: 12px; color: #aaa; margin-bottom: 18px; line-height: 1.5; }
+
+  /* ── FORM ELEMENTS ── */
+  .fcard { background: #f9f9f8; border: 0.5px solid #efefef; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .fcard-lbl { font-size: 9px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #bbb; margin-bottom: 12px; }
+  .f { margin-bottom: 9px; }
+  .f:last-child { margin-bottom: 0; }
+  .f label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; }
+  .f input, .f select, .f textarea {
+    width: 100%; padding: 9px 12px; border: 0.5px solid #e0e0e0; border-radius: 9px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif; background: #fff; color: #0f0f0f;
+    outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .f input:focus, .f select:focus, .f textarea:focus { border-color: #141420; box-shadow: 0 0 0 3px rgba(20,20,32,.06); }
+  .f textarea { resize: none; min-height: 60px; line-height: 1.6; }
+  .r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── CURRENCY PICKER ── */
+  .ccy-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cpill { border: 0.5px solid #e0e0e0; border-radius: 9px; padding: 8px 10px; cursor: pointer; background: #fff; transition: all .15s; min-width: 58px; text-align: center; }
+  .cpill:hover { background: #f5f4f0; }
+  .cpill.on { background: #141420; border-color: #141420; }
+  .csym { font-family: 'Instrument Serif', serif; font-size: 18px; color: #999; display: block; line-height: 1; }
+  .cpill.on .csym { color: #fff; }
+  .cname { font-size: 9px; color: #ccc; margin-top: 1px; }
+  .cpill.on .cname { color: rgba(255,255,255,.45); }
+
+  /* ── FOREX ── */
+  .fxbar { display: flex; align-items: center; gap: 8px; background: #fff; border: 0.5px solid #efefef; border-radius: 9px; padding: 9px 12px; margin-bottom: 8px; }
+  .fxdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: background .3s; }
+  .fxdot.live { background: #22c55e; } .fxdot.dim { background: #ddd; } .fxdot.err { background: #ef4444; }
+  .fxtxt { font-size: 12px; font-weight: 500; flex: 1; }
+  .fxtime { font-size: 10px; color: #bbb; }
+  .fxbtn { background: none; border: none; cursor: pointer; color: #ccc; display: flex; align-items: center; padding: 2px; transition: color .12s; }
+  .fxbtn:hover { color: #555; }
+  .fxbtn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .fxconv { background: #fff; border: 0.5px solid #efefef; border-radius: 9px; padding: 12px 14px; }
+  .fxrow { display: flex; align-items: center; gap: 10px; }
+  .fxiw { flex: 1; position: relative; }
+  .fxiw input { width: 100%; padding: 8px 36px 8px 11px; border: 0.5px solid #e5e5e5; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: #fff; color: #0f0f0f; outline: none; transition: border-color .15s; }
+  .fxiw input:focus { border-color: #141420; }
+  .fxccy { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #ccc; pointer-events: none; font-weight: 500; }
+  .fxarr { color: #ddd; font-size: 16px; flex-shrink: 0; }
+  .fxres { font-size: 15px; font-weight: 500; color: #141420; min-width: 110px; text-align: right; }
+  .fxnote { font-size: 10px; color: #bbb; text-align: right; margin-top: 6px; }
+
+  /* ── LINE ITEMS ── */
+  .li-hdr { display: grid; grid-template-columns: 1fr 50px 76px 28px; gap: 6px; padding-bottom: 7px; border-bottom: 0.5px solid #f0f0f0; margin-bottom: 9px; }
+  .li-hdr span { font-size: 9px; color: #ccc; font-weight: 500; letter-spacing: .4px; }
+  .lirows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .lirow { display: grid; grid-template-columns: 1fr 50px 76px 28px; gap: 6px; align-items: center; }
+  .lirow input { padding: 8px 9px; border: 0.5px solid #e5e5e5; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; background: #fff; color: #0f0f0f; outline: none; width: 100%; transition: border-color .15s; }
+  .lirow input:focus { border-color: #141420; }
+  .lirm { background: none; border: none; cursor: pointer; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #ccc; transition: all .12s; }
+  .lirm:hover { background: #fff0f0; color: #ef4444; }
+  .lirm svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+  .liadd { width: 100%; padding: 9px; border: 0.5px dashed #ddd; border-radius: 9px; background: none; font-size: 12px; color: #aaa; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .12s; margin-bottom: 16px; }
+  .liadd:hover { background: #f9f9f8; color: #555; border-color: #bbb; }
+  .liadd svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+  .litotals { background: #f9f9f8; border: 0.5px solid #efefef; border-radius: 10px; padding: 13px 15px; }
+  .ltr { display: flex; justify-content: space-between; font-size: 11px; color: #bbb; padding: 3px 0; }
+  .ltr.g { border-top: 0.5px solid #e8e8e8; margin-top: 8px; padding-top: 10px; }
+  .ltr.g span:first-child { font-family: 'Instrument Serif', serif; font-size: 17px; color: #0f0f0f; }
+  .ltr.g span:last-child { font-family: 'Instrument Serif', serif; font-size: 20px; color: #141420; }
+  .liphp { text-align: right; font-size: 10px; color: #b8aeff; margin-top: 4px; }
+
+  /* ── PAYMENT METHODS ── */
+  .pmgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 14px; }
+  .pmcard { border: 0.5px solid #e5e5e5; border-radius: 10px; padding: 11px 10px; cursor: pointer; transition: all .15s; background: #fff; }
+  .pmcard:hover { background: #f9f9f8; }
+  .pmcard.on { background: #141420; border-color: #141420; }
+  .pmico { width: 28px; height: 28px; border-radius: 7px; background: #f5f4f0; display: flex; align-items: center; justify-content: center; margin-bottom: 7px; transition: background .15s; }
+  .pmcard.on .pmico { background: rgba(255,255,255,.1); }
+  .pmico svg { width: 14px; height: 14px; stroke: #888; fill: none; stroke-width: 1.8; }
+  .pmcard.on .pmico svg { stroke: rgba(255,255,255,.8); }
+  .pmname { font-size: 12px; font-weight: 500; color: #0f0f0f; }
+  .pmcard.on .pmname { color: #fff; }
+  .pmsub { font-size: 9px; color: #bbb; margin-top: 1px; }
+  .pmcard.on .pmsub { color: rgba(255,255,255,.4); }
+  .pmfields { display: flex; flex-direction: column; gap: 0; }
+
+  /* ── REVIEW PANEL ── */
+  .rvcard { background: #f9f9f8; border: 0.5px solid #efefef; border-radius: 11px; padding: 14px 16px; margin-bottom: 10px; }
+  .rvlbl { font-size: 9px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #bbb; margin-bottom: 11px; }
+  .rvgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rvk { font-size: 10px; color: #bbb; margin-bottom: 1px; }
+  .rvv { font-size: 12px; font-weight: 500; color: #0f0f0f; word-break: break-all; }
+  .rvtotal { font-family: 'Instrument Serif', serif; font-size: 28px; color: #141420; }
+  .rvphp { font-size: 11px; color: #b8aeff; margin-top: 3px; }
+  .rv-edit { text-align: center; padding: 6px 0 4px; }
+  .rv-edit button { background: none; border: none; font-size: 11px; color: #bbb; cursor: pointer; text-decoration: underline; font-family: 'DM Sans', sans-serif; }
+
+  /* ── BOTTOM NAV ── */
+  .botnav { padding: 14px 22px; border-top: 0.5px solid #efefef; display: flex; gap: 8px; flex-shrink: 0; }
+  .nbk { background: none; border: 0.5px solid #e0e0e0; border-radius: 100px; padding: 10px 18px; font-size: 12px; color: #888; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background .12s; white-space: nowrap; }
+  .nbk:hover { background: #f5f4f0; }
+  .nxt { flex: 1; background: #141420; color: #fff; border: none; border-radius: 100px; padding: 11px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity .15s; }
+  .nxt:hover { opacity: .82; }
+  .nxt svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; }
+  .nprt { flex: 1; background: #141420; color: #fff; border: none; border-radius: 100px; padding: 11px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity .15s; }
+  .nprt:hover { opacity: .82; }
+  .nprt svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2; }
+
+  /* ── RIGHT: PREVIEW ── */
+  .R { background: #f0eee8; overflow-y: auto; padding: 32px 28px 60px; display: flex; justify-content: center; align-items: flex-start; }
+
+  /* ── INVOICE SHEET ── */
+  .sheet { width: 580px; background: #fff; border-radius: 20px; border: 0.5px solid rgba(0,0,0,.07); overflow: hidden; }
+
+  .stop { background: #141420; padding: 30px 38px 26px; position: relative; overflow: hidden; }
+  .stop::after { content: ''; position: absolute; right: -55px; top: -55px; width: 190px; height: 190px; border: 44px solid rgba(255,255,255,.04); border-radius: 50%; }
+  .stop-row { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
+  .swm { font-family: 'Instrument Serif', serif; font-size: 36px; color: #fff; letter-spacing: -1px; line-height: 1; }
+  .snpill { display: inline-block; margin-top: 5px; background: rgba(255,255,255,.1); border-radius: 100px; padding: 3px 13px; font-size: 11px; color: rgba(255,255,255,.6); }
+  .sdates { text-align: right; }
+  .sdr { margin-bottom: 4px; }
+  .sdk { font-size: 10px; color: rgba(255,255,255,.4); margin-right: 7px; }
+  .sdv { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.85); }
+
+  .slav { background: #ede9ff; padding: 24px 38px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; border-bottom: 0.5px solid rgba(0,0,0,.05); }
+  .ptag { font-size: 9px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #9d94d0; margin-bottom: 8px; }
+  .pname { font-family: 'Instrument Serif', serif; font-size: 18px; color: #1a1a2e; margin-bottom: 4px; line-height: 1.2; }
+  .pinfo { font-size: 12px; color: #7a72a8; line-height: 1.85; }
+
+  .sbody { padding: 28px 38px; }
+
+  .stbl { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 18px; }
+  .stbl thead tr { border-bottom: 0.5px solid #ebebeb; }
+  .stbl thead th { font-size: 9px; font-weight: 500; letter-spacing: .9px; text-transform: uppercase; color: #ccc; padding: 0 0 8px; text-align: left; }
+  .stbl thead th:not(:first-child) { text-align: right; }
+  .stbl tbody tr { border-bottom: 0.5px solid #f5f5f5; }
+  .stbl tbody tr:last-child { border-bottom: none; }
+  .stbl td { padding: 12px 0; font-size: 13px; color: #777; vertical-align: middle; }
+  .stbl td:first-child { color: #0f0f0f; font-weight: 500; }
+  .stbl td:not(:first-child) { text-align: right; }
+  .stbl td.amt { color: #0f0f0f; font-weight: 500; }
+
+  .stots { display: flex; justify-content: flex-end; margin-bottom: 24px; }
+  .stbox { width: 200px; }
+  .str { display: flex; justify-content: space-between; font-size: 11px; color: #bbb; padding: 3px 0; }
+  .str.g { border-top: 0.5px solid #e8e8e8; margin-top: 7px; padding-top: 11px; }
+  .str.g span:first-child { font-family: 'Instrument Serif', serif; font-size: 17px; color: #0f0f0f; }
+  .str.g span:last-child { font-family: 'Instrument Serif', serif; font-size: 21px; color: #141420; }
+  .sphp { text-align: right; font-size: 11px; color: #b8aeff; margin-top: 4px; }
+
+  .spay { background: #f9f9f8; border: 0.5px solid #efefef; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+  .spayhdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .spaybdg { font-size: 9px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #9d94d0; }
+  .spaymth { font-size: 10px; color: #999; background: #fff; border: 0.5px solid #ebebeb; border-radius: 100px; padding: 2px 9px; }
+  .spaygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
+  .spk { font-size: 10px; color: #ccc; margin-bottom: 1px; }
+  .spv { font-size: 12px; color: #0f0f0f; font-weight: 500; word-break: break-all; }
+
+  .snotes { border-top: 0.5px solid #f0f0f0; padding-top: 16px; font-size: 12px; color: #aaa; line-height: 1.75; }
+  .snotes strong { font-weight: 500; color: #777; }
+
+  .sfoot { background: #f9f9f8; border-top: 0.5px solid #efefef; padding: 13px 38px; display: flex; justify-content: space-between; align-items: center; }
+  .sfnote { font-size: 11px; color: #ccc; }
+  .sfbrand { font-family: 'Instrument Serif', serif; font-size: 14px; color: #141420; font-style: italic; }
+
+  @media print {
+    .L { display: none; }
+    .shell { display: block; }
+    .R { padding: 0; background: #fff; }
+    .sheet { width: 100%; border-radius: 0; border: none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ══════════ LEFT PANEL ══════════ -->
+  <aside class="L">
+
+    <div class="L-head">
+      <div class="lmark">
+        <svg viewBox="0 0 16 16"><path d="M3 8L8 3L13 8M8 3V13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="lbrand">Invoice Builder</span>
+      <span class="lpill">CaerusPH</span>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs" id="tabs">
+      <button class="tab on" onclick="go(0)"><div class="tnum">1</div><span class="tlbl">Parties</span></button>
+      <button class="tab" onclick="go(1)"><div class="tnum">2</div><span class="tlbl">Details</span></button>
+      <button class="tab" onclick="go(2)"><div class="tnum">3</div><span class="tlbl">Items</span></button>
+      <button class="tab" onclick="go(3)"><div class="tnum">4</div><span class="tlbl">Payment</span></button>
+      <button class="tab" onclick="go(4)"><div class="tnum">5</div><span class="tlbl">Review</span></button>
+    </div>
+    <div class="pbar"><div class="pfill" id="pfill" style="width:20%"></div></div>
+
+    <!-- PANELS -->
+    <div class="panels">
+
+      <!-- STEP 1: PARTIES -->
+      <div class="panel on" id="p0">
+        <div class="ptitle">Who's invoicing who?</div>
+        <div class="psub">Fill in your details and your client's details below.</div>
+        <div class="fcard">
+          <div class="fcard-lbl">From — you</div>
+          <div class="f"><label>Full name / business</label><input id="fn" value="Mark Lester Guiquing" oninput="r()"></div>
+          <div class="f"><label>Address</label><input id="fa" value="Marilao, Bulacan" oninput="r()"></div>
+          <div class="r2">
+            <div class="f"><label>Mobile</label><input id="fm" value="09772499194" oninput="r()"></div>
+            <div class="f"><label>Email</label><input id="fe" value="ml.guiquing@gmail.com" oninput="r()"></div>
+          </div>
+        </div>
+        <div class="fcard">
+          <div class="fcard-lbl">Bill to — client</div>
+          <div class="f"><label>Client name</label><input id="tn" value="Moshe Aharon" oninput="r()"></div>
+          <div class="f"><label>Location / company</label><input id="ta" value="Israel" oninput="r()"></div>
+        </div>
+      </div>
+
+      <!-- STEP 2: DETAILS -->
+      <div class="panel" id="p1">
+        <div class="ptitle">Invoice details</div>
+        <div class="psub">Set the invoice number, dates, and billing currency.</div>
+        <div class="fcard">
+          <div class="fcard-lbl">Reference</div>
+          <div class="f"><label>Invoice number</label><input id="inum" value="INV-00004" oninput="r()"></div>
+          <div class="r2">
+            <div class="f"><label>Invoice date</label><input id="idate" type="date" value="2026-03-06" oninput="r()"></div>
+            <div class="f"><label>Due date</label><input id="ddate" type="date" value="2026-03-06" oninput="r()"></div>
+          </div>
+          <div class="f">
+            <label style="margin-bottom:9px">Currency</label>
+            <div class="ccy-row" id="ccyrow">
+              <div class="cpill" onclick="setCcy('PHP')"><span class="csym">₱</span><div class="cname">PHP</div></div>
+              <div class="cpill on" onclick="setCcy('USD')"><span class="csym">$</span><div class="cname">USD</div></div>
+              <div class="cpill" onclick="setCcy('EUR')"><span class="csym">€</span><div class="cname">EUR</div></div>
+              <div class="cpill" onclick="setCcy('GBP')"><span class="csym">£</span><div class="cname">GBP</div></div>
+              <div class="cpill" onclick="setCcy('AUD')"><span class="csym">A$</span><div class="cname">AUD</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="fcard">
+          <div class="fcard-lbl">Live forex — USD → PHP</div>
+          <div class="fxbar">
+            <div class="fxdot dim" id="fxdot"></div>
+            <div style="flex:1">
+              <div class="fxtxt" id="fxtxt">Fetching rate…</div>
+              <div class="fxtime" id="fxtime"></div>
+            </div>
+            <button class="fxbtn" onclick="fetchFx()" title="Refresh rate">
+              <svg viewBox="0 0 16 16"><path d="M13.5 2.5A6.5 6.5 0 1 1 7 1M13.5 2.5V6M13.5 2.5H10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="fxconv">
+            <div class="fxrow">
+              <div class="fxiw">
+                <input type="number" id="fxin" value="1" min="0" step="any" oninput="calcFx()">
+                <span class="fxccy">USD</span>
+              </div>
+              <span class="fxarr">→</span>
+              <div class="fxres" id="fxout">—</div>
+            </div>
+            <div class="fxnote" id="fxnote">Rate loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: ITEMS -->
+      <div class="panel" id="p2">
+        <div class="ptitle">Line items</div>
+        <div class="psub">Add the services or products you're billing for.</div>
+        <div class="li-hdr">
+          <span>Description</span>
+          <span style="text-align:center">Qty</span>
+          <span style="text-align:right">Rate</span>
+          <span></span>
+        </div>
+        <div class="lirows" id="lirows"></div>
+        <button class="liadd" onclick="addLI()">
+          <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
+          Add line item
+        </button>
+        <div class="litotals">
+          <div class="ltr"><span>Subtotal</span><span id="ssub">$ 0.00</span></div>
+          <div class="ltr g"><span>Total</span><span id="stot">$ 0.00</span></div>
+          <div class="liphp" id="sphp" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- STEP 4: PAYMENT -->
+      <div class="panel" id="p3">
+        <div class="ptitle">Payment method</div>
+        <div class="psub">Choose how your client should pay you.</div>
+        <div class="pmgrid" id="pmgrid"></div>
+        <div class="pmfields" id="pmfields"></div>
+        <div class="fcard" style="margin-top:12px">
+          <div class="fcard-lbl">Notes (optional)</div>
+          <div class="f"><textarea id="notes" placeholder="Payment terms, thank-you message, or any extra info for your client."></textarea></div>
+        </div>
+      </div>
+
+      <!-- STEP 5: REVIEW -->
+      <div class="panel" id="p4">
+        <div class="ptitle">Ready to send</div>
+        <div class="psub">Check the live preview on the right, then print or save as PDF.</div>
+        <div id="rvbody"></div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="botnav" id="botnav"></div>
+
+  </aside>
+
+  <!-- ══════════ RIGHT: INVOICE PREVIEW ══════════ -->
+  <main class="R">
+    <div class="sheet">
+
+      <div class="stop">
+        <div class="stop-row">
+          <div>
+            <div class="swm">Invoice</div>
+            <div class="snpill" id="pi-num">INV-00004</div>
+          </div>
+          <div class="sdates">
+            <div class="sdr"><span class="sdk">Invoice date</span><span class="sdv" id="pi-idate">2026-03-06</span></div>
+            <div class="sdr"><span class="sdk">Due date</span><span class="sdv" id="pi-ddate">2026-03-06</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slav">
+        <div>
+          <div class="ptag">From</div>
+          <div class="pname" id="pi-fn">Mark Lester Guiquing</div>
+          <div class="pinfo">
+            <span id="pi-fa">Marilao, Bulacan</span><br>
+            <span id="pi-fm">09772499194</span><br>
+            <span id="pi-fe">ml.guiquing@gmail.com</span>
+          </div>
+        </div>
+        <div>
+          <div class="ptag">Bill to</div>
+          <div class="pname" id="pi-tn">Moshe Aharon</div>
+          <div class="pinfo"><span id="pi-ta">Israel</span></div>
+        </div>
+      </div>
+
+      <div class="sbody">
+        <table class="stbl">
+          <thead>
+            <tr>
+              <th style="width:44%">Description</th>
+              <th style="width:13%">Qty</th>
+              <th style="width:21%">Rate</th>
+              <th style="width:22%">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="pitems"></tbody>
+        </table>
+
+        <div class="stots">
+          <div class="stbox">
+            <div class="str"><span>Subtotal</span><span id="pi-sub">$ 0.00</span></div>
+            <div class="str g"><span>Total</span><span id="pi-tot">$ 0.00</span></div>
+            <div class="sphp" id="pi-php" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="spay">
+          <div class="spayhdr">
+            <span class="spaybdg">Payment info</span>
+            <span class="spaymth" id="pi-pmtag">—</span>
+          </div>
+          <div class="spaygrid" id="pi-pmgrid"></div>
+        </div>
+
+        <div class="snotes" id="pi-noteswrap" style="display:none">
+          <strong>Notes</strong><br><span id="pi-notes"></span>
+        </div>
+      </div>
+
+      <div class="sfoot">
+        <span class="sfnote">Thank you for your continued trust.</span>
+        <span class="sfbrand" id="pi-brand">CaerusPH</span>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+const SYMS = { PHP:'₱', USD:'$', EUR:'€', GBP:'£', AUD:'A$' };
+let step = 0, ccy = 'USD', fxRate = null, apm = 3;
+let items = [{ desc:'Monthly Salary', qty:'', rate:'37500' }];
+
+const PMS = [
+  { n:'Wise', s:'International', ico:'<path d="M2 8h12M10 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/>',
+    fields:[{k:'Email',id:'pw0',ph:'you@wise.com',dv:'ml.guiquing@gmail.com'},{k:'Account name',id:'pw1',ph:'Full name',dv:'Mark Lester Guiquing'}] },
+  { n:'PayPal', s:'Send & receive', ico:'<circle cx="8" cy="8" r="5"/><path d="M8 5.5V11" stroke-linecap="round"/>',
+    fields:[{k:'PayPal email',id:'pp0',ph:'you@paypal.com',dv:'ml.guiquing@gmail.com'},{k:'Name',id:'pp1',ph:'Full name',dv:'Mark Lester Guiquing'}] },
+  { n:'GCash', s:'PH wallet', ico:'<rect x="4" y="3" width="8" height="10" rx="1.5"/><path d="M6 3V2M10 3V2" stroke-linecap="round"/>',
+    fields:[{k:'GCash #',id:'pg0',ph:'09XXXXXXXXX',dv:'09772499194'},{k:'Name',id:'pg1',ph:'Full name',dv:'Mark Lester Guiquing'}] },
+  { n:'Local Bank', s:'BPI · BDO', ico:'<path d="M2 7l6-4 6 4M3 7v5h10V7M6 9v3M10 9v3" stroke-linecap="round" stroke-linejoin="round"/>',
+    fields:[{k:'Bank',id:'pb0',ph:'e.g. BPI',dv:'Bank of the Philippine Islands'},{k:'Account name',id:'pb1',ph:'Full name',dv:'Mark Lester Guiquing'},{k:'Account #',id:'pb2',ph:'0000000000',dv:'1929166104'},{k:'SWIFT/BIC',id:'pb3',ph:'BOPIPHMM',dv:'BOPIPHMM'}] },
+  { n:'Crypto', s:'USDC · stable', ico:'<circle cx="8" cy="8" r="5"/><path d="M8 5v6M6 6.5h3a1.5 1.5 0 010 3H6" stroke-linecap="round"/>',
+    fields:[{k:'Wallet address',id:'pc0',ph:'0x...',dv:''},{k:'Network',id:'pc1',ph:'Ethereum…',dv:''}] },
+  { n:'Other', s:'Custom', ico:'<circle cx="5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="11" cy="8" r="1"/>',
+    fields:[{k:'Detail 1',id:'po0',ph:'Payment info',dv:''},{k:'Detail 2',id:'po1',ph:'Additional info',dv:''}] },
+];
+
+function go(n) {
+  step = n;
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('on', i===n));
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.className = 'tab' + (i===n?' on':i<n?' done':'');
+  });
+  document.getElementById('pfill').style.width = ((n+1)/5*100) + '%';
+  renderNav();
+  if (n===4) renderReview();
+  r();
+}
+
+function renderNav() {
+  const nav = document.getElementById('botnav');
+  const bk = step > 0 ? `<button class="nbk" onclick="go(${step-1})">← Back</button>` : '';
+  if (step === 4) {
+    nav.innerHTML = bk + `<button class="nprt" onclick="window.print()">
+      <svg viewBox="0 0 16 16"><rect x="3" y="6" width="10" height="7" rx="1"/><path d="M5 6V3h6v3M5 12H3V8h10v4h-2" stroke-linecap="round"/></svg>
+      Print / Save as PDF
+    </button>`;
+  } else {
+    nav.innerHTML = bk + `<button class="nxt" onclick="go(${step+1})">
+      Continue
+      <svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>`;
+  }
+}
+
+function setCcy(c) {
+  ccy = c;
+  document.querySelectorAll('.cpill').forEach(el => el.classList.toggle('on', el.querySelector('.cname').textContent === c));
+  r();
+}
+
+function renderPM() {
+  document.getElementById('pmgrid').innerHTML = PMS.map((m,i) => `
+    <div class="pmcard${i===apm?' on':''}" onclick="selPM(${i})">
+      <div class="pmico"><svg viewBox="0 0 16 16" style="width:14px;height:14px;stroke:${i===apm?'rgba(255,255,255,.8)':'#888'};fill:none;stroke-width:1.8">${m.ico}</svg></div>
+      <div class="pmname">${m.n}</div>
+      <div class="pmsub">${m.s}</div>
+    </div>`).join('');
+  document.getElementById('pmfields').innerHTML = PMS[apm].fields.map(f => `
+    <div class="f"><label>${f.k}</label><input id="${f.id}" value="${f.dv}" placeholder="${f.ph}" oninput="r()"></div>`).join('');
+}
+
+function selPM(i) { apm = i; renderPM(); r(); }
+
+function getPM() {
+  const m = PMS[apm];
+  return { label: m.n, rows: m.fields.map(f => ({ k: f.k, v: document.getElementById(f.id)?.value || '' })) };
+}
+
+function fmt(n) { return (parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function g(id) { return document.getElementById(id); }
+function st(id,v) { const e=g(id); if(e) e.textContent=v; }
+
+function fetchFx() {
+  g('fxdot').className = 'fxdot dim';
+  st('fxtxt', 'Fetching rate…'); st('fxtime', '');
+  fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json')
+    .then(res => res.json())
+    .then(data => {
+      fxRate = data.usd.php;
+      g('fxdot').className = 'fxdot live';
+      st('fxtxt', '1 USD = ₱ ' + fxRate.toFixed(4));
+      st('fxtime', 'Updated ' + new Date().toLocaleTimeString());
+      calcFx(); r();
+    })
+    .catch(() => {
+      g('fxdot').className = 'fxdot err';
+      st('fxtxt', 'Rate unavailable');
+      fxRate = null; calcFx();
+    });
+}
+
+function calcFx() {
+  const usd = parseFloat(g('fxin')?.value) || 0;
+  if (fxRate) {
+    g('fxout').textContent = '₱ ' + fmt(usd * fxRate);
+    g('fxnote').textContent = '1 USD = ₱ ' + fxRate.toFixed(4);
+  } else {
+    g('fxout').textContent = '—';
+    g('fxnote').textContent = 'Rate unavailable';
+  }
+}
+
+function renderLI() {
+  const rows = g('lirows'); if (!rows) return;
+  rows.innerHTML = '';
+  items.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'lirow';
+    d.innerHTML = `
+      <input value="${it.desc}" placeholder="Service description" oninput="items[${i}].desc=this.value;r()">
+      <input type="number" value="${it.qty}" placeholder="—" min="0" style="text-align:center" oninput="items[${i}].qty=this.value;r()">
+      <input type="number" value="${it.rate}" placeholder="0.00" min="0" style="text-align:right" oninput="items[${i}].rate=this.value;r()">
+      <button class="lirm" onclick="rmLI(${i})"><svg viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke-linecap="round"/></svg></button>`;
+    rows.appendChild(d);
+  });
+}
+
+function addLI() { items.push({desc:'',qty:'1',rate:''}); renderLI(); r(); }
+function rmLI(i) { if (items.length===1) return; items.splice(i,1); renderLI(); r(); }
+
+function calcItems() {
+  const sym = SYMS[ccy] || ccy; let sub = 0;
+  const rows = items.map(it => {
+    const qty = it.qty !== '' ? parseFloat(it.qty)||0 : null;
+    const rate = parseFloat(it.rate) || 0;
+    const amt = qty !== null ? qty * rate : rate;
+    sub += amt;
+    return { desc: it.desc, qty, rate, amt };
+  });
+  return { sym, sub, rows };
+}
+
+function r() {
+  const { sym, sub, rows } = calcItems();
+
+  // sidebar totals
+  st('ssub', sym+' '+fmt(sub)); st('stot', sym+' '+fmt(sub));
+  const sp = g('sphp');
+  if (sp) { if (ccy==='USD' && fxRate) { sp.style.display='block'; sp.textContent='≈ ₱ '+fmt(sub*fxRate)+' PHP'; } else sp.style.display='none'; }
+
+  // preview — parties
+  st('pi-fn', g('fn')?.value||'—'); st('pi-fa', g('fa')?.value||'');
+  st('pi-fm', g('fm')?.value||''); st('pi-fe', g('fe')?.value||'');
+  st('pi-tn', g('tn')?.value||'—'); st('pi-ta', g('ta')?.value||'');
+  st('pi-num', g('inum')?.value||'');
+  st('pi-idate', g('idate')?.value||''); st('pi-ddate', g('ddate')?.value||'');
+  g('pi-brand').textContent = g('fn')?.value || 'CaerusPH';
+
+  // preview — table
+  const tb = g('pitems');
+  if (tb) {
+    tb.innerHTML = '';
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${row.desc||'<span style="color:#ddd">—</span>'}</td>
+        <td class="amt">${row.qty!==null?row.qty:''}</td>
+        <td class="amt">${row.rate?sym+' '+fmt(row.rate):''}</td>
+        <td class="amt">${sym} ${fmt(row.amt)}</td>`;
+      tb.appendChild(tr);
+    });
+  }
+  st('pi-sub', sym+' '+fmt(sub)); st('pi-tot', sym+' '+fmt(sub));
+  const pp = g('pi-php');
+  if (pp) { if (ccy==='USD' && fxRate) { pp.style.display='block'; pp.textContent='≈ ₱ '+fmt(sub*fxRate)+' PHP'; } else pp.style.display='none'; }
+
+  // preview — payment
+  const pm = getPM();
+  st('pi-pmtag', pm.label);
+  const pg = g('pi-pmgrid');
+  if (pg) pg.innerHTML = pm.rows.filter(x=>x.v).map(x=>`<div><div class="spk">${x.k}</div><div class="spv">${x.v}</div></div>`).join('');
+
+  // preview — notes
+  const notes = g('notes')?.value.trim() || '';
+  const nw = g('pi-noteswrap');
+  if (nw) { if (notes) { nw.style.display='block'; st('pi-notes', notes); } else nw.style.display='none'; }
+}
+
+function renderReview() {
+  const { sym, sub } = calcItems();
+  const pm = getPM();
+  g('rvbody').innerHTML = `
+    <div class="rvcard">
+      <div class="rvlbl">Invoice</div>
+      <div class="rvgrid">
+        <div><div class="rvk">Number</div><div class="rvv">${g('inum')?.value||'—'}</div></div>
+        <div><div class="rvk">Due date</div><div class="rvv">${g('ddate')?.value||'—'}</div></div>
+        <div><div class="rvk">From</div><div class="rvv">${g('fn')?.value||'—'}</div></div>
+        <div><div class="rvk">Bill to</div><div class="rvv">${g('tn')?.value||'—'}</div></div>
+      </div>
+    </div>
+    <div class="rvcard">
+      <div class="rvlbl">Amount due</div>
+      <div class="rvtotal">${sym} ${fmt(sub)}</div>
+      ${ccy==='USD'&&fxRate?`<div class="rvphp">≈ ₱ ${fmt(sub*fxRate)} PHP</div>`:''}
+    </div>
+    <div class="rvcard">
+      <div class="rvlbl">Payment via ${pm.label}</div>
+      <div class="rvgrid">${pm.rows.filter(x=>x.v).map(x=>`<div><div class="rvk">${x.k}</div><div class="rvv">${x.v}</div></div>`).join('')}</div>
+    </div>
+    <div class="rv-edit"><button onclick="go(0)">Edit from beginning</button></div>`;
+}
+
+// INIT
+renderPM(); renderLI(); renderNav(); fetchFx(); r();
+</script>
+</body>
+</html>
